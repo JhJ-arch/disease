@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>감염병 검색 사전</title>
+  <!-- Tailwind CSS 로드 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 가독성 높은 Noto Sans KR 웹폰트 로드 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Noto Sans KR"', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+</head>
+<body class="bg-white text-slate-900 font-sans antialiased selection:bg-blue-100 selection:text-blue-900 min-h-screen flex flex-col">
+
+  <!-- =====================================================================
+       1. 초기 화면 (홈 모드): 구글 메인처럼 정중앙 타이틀 + 검색창 + 추천 키워드
+       ===================================================================== -->
+  <div id="home-view" class="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 pb-20">
+    <div class="w-full max-w-2xl text-center">
+      <!-- 타이틀 -->
+      <h1 class="text-3xl sm:text-5xl font-bold tracking-tight text-slate-900 mb-3">
+        감염병 검색 사전
+      </h1>
+      <p class="text-sm sm:text-base text-slate-500 mb-8">
+        궁금한 감염병 이름이나 증상을 입력해 보세요.
+      </p>
+
+      <!-- 구글 스타일 둥근 검색창 -->
+      <form id="home-search-form" class="relative w-full">
+        <label for="home-search-input" class="sr-only">감염병 검색</label>
+        <input
+          type="text"
+          id="home-search-input"
+          autocomplete="off"
+          placeholder="예: 기침, 열, 물집, 설사, 독감, 수두"
+          class="w-full bg-white border border-slate-300 hover:border-slate-400 focus:border-blue-600 rounded-full py-4 pl-6 pr-24 text-base sm:text-lg text-slate-900 placeholder:text-slate-400 shadow-sm hover:shadow-md focus:shadow-md outline-none transition-all"
+        >
+        <button
+          type="submit"
+          class="absolute right-2.5 top-1/2 -translate-y-1/2 px-5 py-2 text-sm sm:text-base font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-full transition-colors"
+        >
+          검색
+        </button>
+      </form>
+
+      <!-- 추천 검색 키워드 칩 (1~2줄 간결 배치) -->
+      <div class="mt-7">
+        <p class="text-xs font-medium text-slate-400 mb-3">추천 검색 키워드</p>
+        <div id="home-keywords" class="flex flex-wrap items-center justify-center gap-2">
+          <!-- JavaScript에서 추천 키워드 버튼을 생성합니다 -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       2. 검색 결과 화면 (검색 모드): 구글 검색 결과 페이지 레이아웃
+       ===================================================================== -->
+  <div id="results-view" class="hidden flex-1 flex flex-col bg-slate-50/60">
+    <!-- 상단 고정 검색 헤더 -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-20">
+      <div class="max-w-4xl mx-auto px-4 sm:px-6 py-3.5 sm:py-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
+        <!-- 클릭 시 초기 중앙 화면으로 복귀하는 타이틀 로고 -->
+        <button
+          type="button"
+          id="logo-home-btn"
+          class="text-left text-xl sm:text-2xl font-bold tracking-tight text-slate-900 hover:text-blue-700 transition-colors shrink-0"
+        >
+          감염병 검색 사전
+        </button>
+
+        <!-- 상단 검색 입력창 -->
+        <form id="results-search-form" class="relative flex-1">
+          <label for="results-search-input" class="sr-only">감염병 다시 검색</label>
+          <input
+            type="text"
+            id="results-search-input"
+            autocomplete="off"
+            placeholder="감염병 이름이나 증상을 입력하세요"
+            class="w-full bg-white border border-slate-300 focus:border-blue-600 rounded-full py-2.5 pl-5 pr-28 text-sm sm:text-base text-slate-900 placeholder:text-slate-400 shadow-xs outline-none transition-colors"
+          >
+          <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+            <button
+              type="button"
+              id="results-clear-btn"
+              class="hidden px-2.5 py-1 text-xs font-medium text-slate-500 hover:text-slate-900 rounded-full hover:bg-slate-100 transition-colors"
+            >
+              지우기
+            </button>
+            <button
+              type="submit"
+              class="px-4 py-1.5 text-xs sm:text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-full transition-colors"
+            >
+              검색
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- 상단 헤더 하단 추천 키워드 바 -->
+      <div class="border-t border-slate-100 bg-slate-50/80">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar">
+          <span class="text-xs font-medium text-slate-400 shrink-0">추천:</span>
+          <div id="results-keywords" class="flex items-center gap-1.5 shrink-0">
+            <!-- JavaScript에서 추천 키워드 버튼을 생성합니다 -->
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- 검색 결과 본문 리스트 -->
+    <main class="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <!-- 검색 결과 요약 텍스트 -->
+      <p id="result-summary" class="text-xs sm:text-sm text-slate-500 mb-5">
+        검색 결과 0개
+      </p>
+
+      <!-- 구글 검색 결과 형태의 세로 리스트 컨테이너 -->
+      <div id="results-list" class="space-y-4">
+        <!-- JavaScript에서 검색 결과 카드를 렌더링합니다 -->
+      </div>
+
+      <!-- 검색 결과가 없을 때 표시되는 안내 화면 -->
+      <div id="empty-state" class="hidden bg-white border border-slate-200 rounded-2xl p-8 sm:p-12 text-center my-4">
+        <p class="text-base sm:text-lg font-bold text-slate-800 mb-2">
+          '<span id="empty-query-text" class="text-blue-700"></span>'에 대한 검색 결과를 찾지 못했어요.
+        </p>
+        <p class="text-sm text-slate-600 mb-6">
+          아래 추천 키워드를 눌러서 다시 검색해 보세요.
+        </p>
+        <div id="empty-keywords" class="flex flex-wrap items-center justify-center gap-2 mb-6">
+          <!-- JavaScript에서 추천 키워드 버튼을 생성합니다 -->
+        </div>
+        <button
+          type="button"
+          id="back-to-home-btn"
+          class="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-full transition-colors"
+        >
+          처음 화면으로 돌아가기
+        </button>
+      </div>
+    </main>
+  </div>
+
+  <!-- 하단 푸터 -->
+  <footer class="bg-white border-t border-slate-100 py-4 mt-auto">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 text-xs text-slate-400 flex flex-col sm:flex-row justify-between gap-1 text-center sm:text-left">
+      <span>초등학교 3학년 탐구 학습용 감염병 검색 사전</span>
+      <span>전파 경로 분류: 비말 · 침 · 물 · 접촉 · 공기</span>
+    </div>
+  </footer>
+
+  <script>
+    /**
+     * [RAG 지식 베이스 데이터 - 20종 확정본]
+     */
+    const DISEASE_DATA = [
+      {
+        id: "disease_01",
+        name: "감기",
+        transmission: "비말",
+        transmission_detail: "감기에 걸린 친구가 기침이나 재채기를 할 때 튀어나오는 작은 침방울이 내 코나 입으로 들어가 옮습니다.",
+        symptoms: "콧물이 나고 코가 막히며, 목이 따갑고 기침이 나면서 열이 살짝 오릅니다."
+      },
+      {
+        id: "disease_02",
+        name: "독감",
+        transmission: "비말",
+        transmission_detail: "환자가 기침이나 재채기를 할 때 튄 침방울을 가까운 거리에서 들이마셔 감염됩니다.",
+        symptoms: "갑자기 아주 높은 열이 나고, 머리와 온몸이 쑤시듯 아프며 심한 기침이 납니다."
+      },
+      {
+        id: "disease_03",
+        name: "코로나19",
+        transmission: "비말",
+        transmission_detail: "기침, 재채기, 큰 소리로 대화를 할 때 나오는 침방울이 주변 사람의 코와 입으로 들어가 옮습니다.",
+        symptoms: "열이 나고 마른기침이 나며, 목이 몹시 아프고 음식 맛이나 냄새가 잘 안 느껴질 수 있습니다."
+      },
+      {
+        id: "disease_04",
+        name: "백일해",
+        transmission: "비말",
+        transmission_detail: "환자가 기침할 때 튀는 침방울을 통해 옆에 있는 사람에게 쉽게 옮습니다.",
+        symptoms: "처음엔 감기 같다가, 숨을 들이쉴 때 '웁' 소리가 날 정도로 멈추지 않는 심한 기침을 합니다."
+      },
+      {
+        id: "disease_05",
+        name: "볼거리",
+        transmission: "침",
+        transmission_detail: "환자와 컵, 숟가락, 빨대를 같이 쓰거나 침이 묻은 물건을 입에 대면 침을 통해 옮습니다.",
+        symptoms: "귀 아래쪽 턱선이 퉁퉁 붓고 아프며, 특히 음식을 씹을 때 귀 밑이 더 욱신거립니다."
+      },
+      {
+        id: "disease_06",
+        name: "입술 물집",
+        transmission: "침",
+        transmission_detail: "입술에 물집이 생긴 사람과 물병, 숟가락, 립밤 등을 함께 쓰면서 침이 닿아 옮습니다.",
+        symptoms: "입술 가장자리가 따끔거리고 가렵다가 작은 물집들이 옹기종기 생기고 딱지가 앉습니다."
+      },
+      {
+        id: "disease_07",
+        name: "구내염",
+        transmission: "침",
+        transmission_detail: "환자의 침이 묻은 장난감이나 식기, 음료수를 함께 사용하면서 침을 통해 감염됩니다.",
+        symptoms: "열이 나면서 입안과 목젖 주변에 하얀 물집이 생기고 헐어서 침이나 음식을 삼키기 아픕니다."
+      },
+      {
+        id: "disease_08",
+        name: "충치균 감염",
+        transmission: "침",
+        transmission_detail: "충치균이 많은 사람의 숟가락으로 음식을 받아먹거나 컵을 돌려 마시면 침을 통해 균이 옮습니다.",
+        symptoms: "이가 시리고 음식을 씹을 때 찌릿하게 아프며, 치아 표면에 까만 점이나 구멍이 생깁니다."
+      },
+      {
+        id: "disease_09",
+        name: "노로바이러스 장염",
+        transmission: "물",
+        transmission_detail: "오염된 지하수를 마시거나, 깨끗하지 않은 물로 씻은 채소·과일, 덜 익힌 굴을 먹어 감염됩니다.",
+        symptoms: "속이 울렁거리며 갑자기 토를 하고, 물처럼 묽은 설사를 하며 배가 쥐어짜듯 아픕니다."
+      },
+      {
+        id: "disease_10",
+        name: "로타바이러스 장염",
+        transmission: "물",
+        transmission_detail: "바이러스에 오염된 물을 마시거나, 그 물로 씻은 음식을 먹었을 때 장으로 들어가 옮습니다.",
+        symptoms: "열이 나고 토를 한 뒤, 하루에도 여러 번 심한 물설사를 해서 몸의 수분이 빠르게 빠집니다."
+      },
+      {
+        id: "disease_11",
+        name: "A형 간염",
+        transmission: "물",
+        transmission_detail: "오염된 물을 마시거나, 오염된 바닷물에서 자란 조개 등을 충분히 익히지 않고 먹으면 옮습니다.",
+        symptoms: "온몸에 힘이 없고 속이 메스꺼우며, 눈의 흰자위와 얼굴 피부가 노랗게 변합니다."
+      },
+      {
+        id: "disease_12",
+        name: "콜레라",
+        transmission: "물",
+        transmission_detail: "병원균이 들어 있는 오염된 강물이나 지하수를 마시거나, 그 물에 씻은 날음식을 먹으면 옮습니다.",
+        symptoms: "배는 별로 아프지 않지만 쌀뜨물처럼 희뿌연 설사를 갑자기 많이 하여 몸이 축 처집니다."
+      },
+      {
+        id: "disease_13",
+        name: "유행성 눈병",
+        transmission: "접촉",
+        transmission_detail: "환자의 눈곱이나 눈물이 묻은 손, 수건, 문고리를 만진 뒤 자기 눈을 비비면 옮습니다.",
+        symptoms: "눈이 토끼 눈처럼 빨개지고 눈곱이 많이 끼며, 눈에 모래가 들어간 것처럼 따갑습니다."
+      },
+      {
+        id: "disease_14",
+        name: "수족구병",
+        transmission: "접촉",
+        transmission_detail: "환자의 물집 진물이나 침이 묻은 장난감, 책상, 손잡이를 만진 손으로 입을 만지면 옮습니다.",
+        symptoms: "손바닥, 발바닥, 입안에 붉은 반점과 물집이 잡히고, 입안이 헐어 밥을 먹기 힘듭니다."
+      },
+      {
+        id: "disease_15",
+        name: "농가진",
+        transmission: "접촉",
+        transmission_detail: "상처 난 피부에 환자의 진물이 닿거나, 환자가 쓴 수건·옷을 함께 쓰면서 세균이 옮습니다.",
+        symptoms: "피부에 붉은 반점과 물집이 생겼다가 금방 터지면서 노랗고 두꺼운 딱지가 앉고 가렵습니다."
+      },
+      {
+        id: "disease_16",
+        name: "무좀",
+        transmission: "접촉",
+        transmission_detail: "환자의 발 각질이 떨어진 수영장 바닥, 공용 슬리퍼, 발수건 등에 맨발이 닿아 옮습니다.",
+        symptoms: "발가락 사이나 발바닥 피부가 하얗게 불어서 갈라지고, 껍질이 벗겨지며 몹시 가렵습니다."
+      },
+      {
+        id: "disease_17",
+        name: "수두",
+        transmission: "공기",
+        transmission_detail: "환자가 숨쉬거나 기침할 때 공기 중에 떠다니는 아주 작은 바이러스를 들이마셔 옮습니다.",
+        symptoms: "열이 나면서 온몸에 몹시 가려운 붉은 반점이 생기고, 투명한 물집으로 변했다가 딱지가 됩니다."
+      },
+      {
+        id: "disease_18",
+        name: "홍역",
+        transmission: "공기",
+        transmission_detail: "환자의 호흡기에서 나와 공기 중에 오랫동안 떠다니는 바이러스를 숨쉴 때 들이마셔 감염됩니다.",
+        symptoms: "높은 열과 기침, 콧물이 나다가 귀 뒤쪽부터 시작해 온몸으로 붉은 반점이 빠르게 퍼집니다."
+      },
+      {
+        id: "disease_19",
+        name: "결핵",
+        transmission: "공기",
+        transmission_detail: "결핵 환자가 기침할 때 공기 중으로 퍼진 아주 미세한 결핵균이 떠다니다 폐로 들어가 옮습니다.",
+        symptoms: "2주 넘게 기침과 가래가 멈추지 않고, 저녁마다 열이 살짝 나며 쉽게 지치고 살이 빠집니다."
+      },
+      {
+        id: "disease_20",
+        name: "사스",
+        transmission: "공기",
+        transmission_detail: "환자가 기침하거나 숨쉴 때 공기 중에 떠다니는 미세한 침 입자를 들이마셔 감염됩니다.",
+        symptoms: "갑자기 높은 열이 나고 온몸이 쑤시며, 마른기침이 심해지면서 숨을 쉬기 답답해집니다."
+      }
+    ];
+
+    // 초등학교 3학년 학생들의 호기심과 증상·상황 추론을 돕는 추천 검색 키워드
+    const RECOMMENDED_KEYWORDS = [
+      "기침",
+      "열",
+      "물집",
+      "설사",
+      "눈곱",
+      "컵",
+      "수두",
+      "노로바이러스"
+    ];
+
+    // 전파 경로별 시각적 구분을 위한 절제된 색상 배지 스타일
+    const BADGE_STYLES = {
+      "비말": "bg-sky-50 text-sky-800 border-sky-200",
+      "침": "bg-amber-50 text-amber-800 border-amber-200",
+      "물": "bg-teal-50 text-teal-800 border-teal-200",
+      "접촉": "bg-rose-50 text-rose-800 border-rose-200",
+      "공기": "bg-indigo-50 text-indigo-800 border-indigo-200"
+    };
+
+    // 현재 검색어 상태
+    let currentQuery = "";
+
+    // DOM 요소 참조
+    const homeView = document.getElementById("home-view");
+    const resultsView = document.getElementById("results-view");
+
+    const homeSearchForm = document.getElementById("home-search-form");
+    const homeSearchInput = document.getElementById("home-search-input");
+    const homeKeywordsContainer = document.getElementById("home-keywords");
+
+    const logoHomeBtn = document.getElementById("logo-home-btn");
+    const resultsSearchForm = document.getElementById("results-search-form");
+    const resultsSearchInput = document.getElementById("results-search-input");
+    const resultsClearBtn = document.getElementById("results-clear-btn");
+    const resultsKeywordsContainer = document.getElementById("results-keywords");
+
+    const resultSummary = document.getElementById("result-summary");
+    const resultsList = document.getElementById("results-list");
+    const emptyState = document.getElementById("empty-state");
+    const emptyQueryText = document.getElementById("empty-query-text");
+    const emptyKeywordsContainer = document.getElementById("empty-keywords");
+    const backToHomeBtn = document.getElementById("back-to-home-btn");
+
+    /**
+     * 초기 화면(홈 모드)으로 전환합니다.
+     */
+    function switchToHomeView() {
+      currentQuery = "";
+      homeSearchInput.value = "";
+      resultsSearchInput.value = "";
+      resultsClearBtn.classList.add("hidden");
+
+      resultsView.classList.add("hidden");
+      homeView.classList.remove("hidden");
+      homeSearchInput.focus();
+      window.scrollTo({ top: 0, behavior: "instant" });
+    }
+
+    /**
+     * 검색어를 실행하고 검색 결과 화면(검색 모드)으로 전환합니다.
+     */
+    function executeSearch(queryText) {
+      const trimmed = queryText.trim();
+      if (!trimmed) {
+        homeSearchInput.focus();
+        return;
+      }
+
+      currentQuery = trimmed;
+      homeSearchInput.value = currentQuery;
+      resultsSearchInput.value = currentQuery;
+      resultsClearBtn.classList.remove("hidden");
+
+      homeView.classList.add("hidden");
+      resultsView.classList.remove("hidden");
+
+      renderResultsKeywords();
+      renderSearchResults();
+      window.scrollTo({ top: 0, behavior: "instant" });
+    }
+
+    /**
+     * 홈 화면 및 빈 결과 화면에 추천 검색 키워드 칩을 생성합니다.
+     */
+    function renderKeywordChips(container, sizeClass) {
+      container.innerHTML = "";
+      RECOMMENDED_KEYWORDS.forEach((keyword) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = sizeClass;
+        btn.textContent = keyword;
+        btn.addEventListener("click", () => {
+          executeSearch(keyword);
+        });
+        container.appendChild(btn);
+      });
+    }
+
+    /**
+     * 검색 결과 페이지 상단의 추천 키워드 바를 렌더링합니다 (현재 검색어와 일치하면 활성 스타일 적용).
+     */
+    function renderResultsKeywords() {
+      resultsKeywordsContainer.innerHTML = "";
+      RECOMMENDED_KEYWORDS.forEach((keyword) => {
+        const isCurrent = currentQuery.toLowerCase() === keyword.toLowerCase();
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = isCurrent
+          ? "px-3 py-1 text-xs font-bold rounded-full bg-blue-600 text-white transition-colors"
+          : "px-3 py-1 text-xs font-medium rounded-full bg-white text-slate-600 border border-slate-200 hover:border-slate-300 hover:text-slate-900 transition-colors";
+        btn.textContent = keyword;
+        btn.addEventListener("click", () => {
+          executeSearch(keyword);
+        });
+        resultsKeywordsContainer.appendChild(btn);
+      });
+    }
+
+    /**
+     * RAG 방식의 문맥 기반 키워드 매칭을 수행하여 일치하는 감염병 목록을 반환합니다.
+     * 이름, 전파 경로, 전파 상세 설명, 증상 텍스트 전체에서 공백 구분 다중 키워드를 탐색합니다.
+     */
+    function searchDiseases(query) {
+      const normalized = query.trim().toLowerCase();
+      const keywords = normalized.split(/\s+/).filter(Boolean);
+      if (keywords.length === 0) return [];
+
+      return DISEASE_DATA.filter((item) => {
+        const fullChunk = `${item.name} ${item.transmission} ${item.transmission_detail} ${item.symptoms}`.toLowerCase();
+        return keywords.every((kw) => fullChunk.includes(kw));
+      });
+    }
+
+    /**
+     * 검색어와 일치하는 단어를 노란색 <mark> 태그로 안전하게 강조합니다.
+     */
+    function createHighlightedFragment(text, query) {
+      const fragment = document.createDocumentFragment();
+      const trimmed = query.trim();
+      if (!trimmed) {
+        fragment.appendChild(document.createTextNode(text));
+        return fragment;
+      }
+
+      const keywords = trimmed.split(/\s+/).filter(Boolean);
+      const escapedKeywords = keywords.map((kw) => kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+      const regex = new RegExp(`(${escapedKeywords.join("|")})`, "gi");
+      const parts = text.split(regex);
+
+      parts.forEach((part) => {
+        if (keywords.some((kw) => part.toLowerCase() === kw.toLowerCase())) {
+          const mark = document.createElement("mark");
+          mark.className = "bg-amber-200 text-slate-900 rounded px-0.5 font-semibold";
+          mark.textContent = part;
+          fragment.appendChild(mark);
+        } else {
+          fragment.appendChild(document.createTextNode(part));
+        }
+      });
+
+      return fragment;
+    }
+
+    /**
+     * 검색 결과 카드 목록을 구글 검색 결과 스타일로 렌더링합니다.
+     * 학생이 클릭 한 번 없이도 전파 경로와 주요 증상을 바로 읽고 비교할 수 있도록 구조화했습니다.
+     */
+    function renderSearchResults() {
+      const matches = searchDiseases(currentQuery);
+      resultsList.innerHTML = "";
+
+      resultSummary.innerHTML = `'<strong class="text-slate-800">${escapeHtml(currentQuery)}</strong>' 검색 결과 <strong class="text-blue-700">${matches.length}</strong>건`;
+
+      if (matches.length === 0) {
+        resultsList.classList.add("hidden");
+        emptyState.classList.remove("hidden");
+        emptyQueryText.textContent = currentQuery;
+        return;
+      }
+
+      resultsList.classList.remove("hidden");
+      emptyState.classList.add("hidden");
+
+      matches.forEach((disease) => {
+        const article = document.createElement("article");
+        article.className =
+          "bg-white border border-slate-200 hover:border-slate-300 rounded-2xl p-5 sm:p-6 shadow-2xs transition-colors";
+
+        // 1. 상단 헤더: 감염병 이름 + 전파 경로 배지
+        const headerDiv = document.createElement("div");
+        headerDiv.className = "flex flex-wrap items-center justify-between gap-2 pb-3.5 mb-4 border-b border-slate-100";
+
+        const titleEl = document.createElement("h2");
+        titleEl.className = "text-xl sm:text-2xl font-bold text-blue-800 tracking-tight";
+        titleEl.appendChild(createHighlightedFragment(disease.name, currentQuery));
+
+        const badgeWrapper = document.createElement("div");
+        badgeWrapper.className = "flex items-center gap-2";
+
+        const badgeLabel = document.createElement("span");
+        badgeLabel.className = "text-xs font-medium text-slate-400";
+        badgeLabel.textContent = "전파 경로";
+
+        const badge = document.createElement("span");
+        const badgeStyle = BADGE_STYLES[disease.transmission] || "bg-slate-100 text-slate-800 border-slate-200";
+        badge.className = `inline-block px-3 py-1 text-xs sm:text-sm font-bold rounded-full border ${badgeStyle}`;
+        badge.appendChild(createHighlightedFragment(disease.transmission, currentQuery));
+
+        badgeWrapper.appendChild(badgeLabel);
+        badgeWrapper.appendChild(badge);
+
+        headerDiv.appendChild(titleEl);
+        headerDiv.appendChild(badgeWrapper);
+
+        // 2. 본문 영역: 어떻게 옮나요? & 어떤 증상이 나타나나요? (초3 눈높이 구조화)
+        const bodyGrid = document.createElement("div");
+        bodyGrid.className = "grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4";
+
+        // 전파 경로 설명 박스
+        const transBox = document.createElement("div");
+        transBox.className = "bg-slate-50 rounded-xl p-4 border border-slate-100";
+
+        const transTitle = document.createElement("h3");
+        transTitle.className = "text-xs sm:text-sm font-bold text-slate-700 mb-1.5";
+        transTitle.textContent = "어떻게 옮나요?";
+
+        const transText = document.createElement("p");
+        transText.className = "text-sm sm:text-base text-slate-800 leading-relaxed";
+        transText.appendChild(createHighlightedFragment(disease.transmission_detail, currentQuery));
+
+        transBox.appendChild(transTitle);
+        transBox.appendChild(transText);
+
+        // 주요 증상 설명 박스
+        const sympBox = document.createElement("div");
+        sympBox.className = "bg-slate-50 rounded-xl p-4 border border-slate-100";
+
+        const sympTitle = document.createElement("h3");
+        sympTitle.className = "text-xs sm:text-sm font-bold text-slate-700 mb-1.5";
+        sympTitle.textContent = "어떤 증상이 나타나나요?";
+
+        const sympText = document.createElement("p");
+        sympText.className = "text-sm sm:text-base text-slate-800 leading-relaxed";
+        sympText.appendChild(createHighlightedFragment(disease.symptoms, currentQuery));
+
+        sympBox.appendChild(sympTitle);
+        sympBox.appendChild(sympText);
+
+        bodyGrid.appendChild(transBox);
+        bodyGrid.appendChild(sympBox);
+
+        article.appendChild(headerDiv);
+        article.appendChild(bodyGrid);
+        resultsList.appendChild(article);
+      });
+    }
+
+    /**
+     * HTML 특수문자 이스케이프 헬퍼 함수
+     */
+    function escapeHtml(str) {
+      return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    // =========================================================================
+    // 이벤트 리스너 바인딩
+    // =========================================================================
+
+    // 초기 화면 검색 폼 제출
+    homeSearchForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      executeSearch(homeSearchInput.value);
+    });
+
+    // 검색 결과 화면 상단 로고 클릭 시 초기 화면 복귀
+    logoHomeBtn.addEventListener("click", switchToHomeView);
+    backToHomeBtn.addEventListener("click", switchToHomeView);
+
+    // 검색 결과 화면 검색 폼 제출
+    resultsSearchForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      executeSearch(resultsSearchInput.value);
+    });
+
+    // 검색 결과 화면 입력창 실시간 입력 시 결과 갱신 및 지우기 버튼 제어
+    resultsSearchInput.addEventListener("input", (e) => {
+      const val = e.target.value;
+      if (val.length > 0) {
+        resultsClearBtn.classList.remove("hidden");
+      } else {
+        resultsClearBtn.classList.add("hidden");
+      }
+
+      if (val.trim().length > 0) {
+        currentQuery = val.trim();
+        renderResultsKeywords();
+        renderSearchResults();
+      }
+    });
+
+    // 검색 결과 화면 입력창 지우기 버튼
+    resultsClearBtn.addEventListener("click", () => {
+      resultsSearchInput.value = "";
+      resultsClearBtn.classList.add("hidden");
+      resultsSearchInput.focus();
+    });
+
+    // 초기 로드 시 추천 키워드 칩 렌더링 및 검색창 포커스
+    window.addEventListener("DOMContentLoaded", () => {
+      const homeChipStyle =
+        "px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 hover:text-slate-900 rounded-full transition-colors";
+      renderKeywordChips(homeKeywordsContainer, homeChipStyle);
+      renderKeywordChips(emptyKeywordsContainer, homeChipStyle);
+      homeSearchInput.focus();
+    });
+  </script>
+</body>
+</html>
